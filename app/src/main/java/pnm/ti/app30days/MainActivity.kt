@@ -3,8 +3,16 @@ package pnm.ti.app30days
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -29,9 +37,15 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.dimensionResource
@@ -77,25 +91,24 @@ fun ThirtyDayApp() {
         // convert mutable list back to immutable list
         val ideasList = mutableList.toList()
 
-        Scaffold(   // topAppBar composable displaying topic title
+        Scaffold(
             topBar = { TitleBar(scrollBehavior) },
-            modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection) // collapsing behavior when scrolling
-
+            modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
         ) { paddingValues ->
 
-            LazyColumn( // organize items in a column
-                verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.ten_dp)), // vertical spacing between items
-                horizontalAlignment = Alignment.CenterHorizontally, // center content horizontally
-                contentPadding = PaddingValues(dimensionResource(R.dimen.ten_dp)), // spacing around entire content column
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(dimensionResource(R.dimen.ten_dp)),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                contentPadding = PaddingValues(dimensionResource(R.dimen.ten_dp)),
                 modifier = Modifier
-                    .fillMaxSize()  // fill screen to add scrolling to surface
-                    .padding(paddingValues) // outer content padding
+                    .fillMaxSize()
+                    .padding(paddingValues)
             ) {
                 items(ideasList) { idea ->
 
-                    val dayOfMonth = (ideasList.indexOf(idea).inc())  // item index integer value + 1
+                    val dayOfMonth = (ideasList.indexOf(idea).inc())
 
-                    DayItem(dayOfMonth, idea)  // card composable
+                    DayItem(dayOfMonth, idea)
                 }
             }
         }
@@ -106,9 +119,6 @@ fun ThirtyDayApp() {
 
 /**
  *  TopAppBar composable displaying topic title
- *
- *  @param scrollBehavior collapses topAppBar while scrolling
- *  @param modifier modifier values applied to composable
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,9 +142,7 @@ fun TitleBar(
 /**
  *  Card composable applied to idea collection items
  *
- *  @param dayOfMonth collection item index value
- *  @param dayIdea data class model containing information
- *  @param modifier modifier values applied to composable
+ *  Tapping the card toggles expansion. Size changes are animated.
  */
 @Composable
 fun DayItem(
@@ -142,98 +150,121 @@ fun DayItem(
     dayIdea: DayIdea,
     modifier: Modifier = Modifier
 ) {
+    var expanded by remember { mutableStateOf(false) }
+
+    // target weights for collapsed / expanded states
+    val targetImageWeight = if (expanded) 0.4f else 0.7f
+    val imageWeight by animateFloatAsState(targetValue = targetImageWeight)
+    val infoWeight = 1f - imageWeight
+
     Card(
-        elevation = CardDefaults.elevatedCardElevation(dimensionResource(R.dimen.two_dp)),   // slight shadowing
+        elevation = CardDefaults.elevatedCardElevation(dimensionResource(R.dimen.two_dp)),
         modifier = modifier
-            .size(  // card dimensions
+            .size(
                 width = dimensionResource(R.dimen.five_hundred_dp),
                 height = dimensionResource(R.dimen.four_hundred_dp)
             )
+            .clickable { expanded = !expanded }
+            .animateContentSize()
     ) {
         Column(
-            modifier = Modifier.fillMaxSize()   // use entire card space
+            modifier = Modifier.fillMaxSize()
         ) {
-            CardImage(dayIdea, Modifier.weight(1f))    // upper-half card space
-
-            CardInformation(dayOfMonth, dayIdea, Modifier.weight(1f))  // lower-half card space
+            CardImage(dayIdea, Modifier.weight(imageWeight))
+            CardInformation(dayOfMonth, dayIdea, Modifier.weight(infoWeight), expanded)
         }
     }
 }
 
-
 /**
  *  Image composable used to display idea image
- *
- *  @param dayIdea data class model containing information
- *  @param modifier modifier values applied to composable
  */
 @Composable
 fun CardImage(
     dayIdea: DayIdea,
     modifier: Modifier = Modifier
 ) {
-    Image(
-        painter = painterResource(dayIdea.image),  // idea image
-        contentDescription = null,
-        contentScale = ContentScale.FillBounds, // stretch image to fill entire space
+    Box(
         modifier = modifier
-            .fillMaxSize()  // fill entire upper-half card space
+            .fillMaxSize()
             .clip(
                 RoundedCornerShape(
-                    bottomStart = dimensionResource(R.dimen.twelve_dp),    // round image lower-left corner
-                    bottomEnd = dimensionResource(R.dimen.twelve_dp)   // round image lower-right corner
+                    bottomStart = dimensionResource(R.dimen.twelve_dp),
+                    bottomEnd = dimensionResource(R.dimen.twelve_dp)
                 )
             )
-    )
-}
-
-
-/**
- *  Card header and idea descriptors composable
- *
- *  @param dayOfMonth collection item index value
- *  @param dayIdea data class model containing information
- *  @param modifier modifier values applied to composable
- */
-@Composable
-private fun CardInformation(
-    dayOfMonth: Int,
-    dayIdea: DayIdea,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()  // fill entire lower-half card space
-            .padding(dimensionResource(R.dimen.twenty_dp)) // spacing around column contents
-
     ) {
-        CardHeadline(dayOfMonth, dayIdea)  // card headline composable
-
-        Spacer(Modifier.height(dimensionResource(R.dimen.ten_dp)))  // vertical spacing between composables
-
-        Text(
-            text = stringResource(dayIdea.description),    // idea description
-            style = Typography.bodyLarge,    // 16sp font size
-            overflow = TextOverflow.Visible // display all text
-        )
-
-        Spacer(Modifier.weight(1f))     // fill all space between prior/next composables
-
-        Text(
-            text = stringResource(dayIdea.reference),  // image reference
-            style = Typography.labelSmall,  // 11sp font size
-            overflow = TextOverflow.Visible, // display all text
-            modifier = Modifier.align(Alignment.End)    // align text composable to right
+        Image(
+            painter = painterResource(dayIdea.image),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
         )
     }
 }
 
 
 /**
- *  Day of month and idea title composable
+ *  Card header and idea descriptors composable
  *
- *  @param dayOfMonth collection item index value
- *  @param dayIdea data class model containing information
+ *  Expansion now controls the information section (description/reference).
+ */
+@Composable
+private fun CardInformation(
+    dayOfMonth: Int,
+    dayIdea: DayIdea,
+    modifier: Modifier = Modifier,
+    expanded: Boolean = false
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(dimensionResource(R.dimen.twenty_dp))
+
+    ) {
+        CardHeadline(dayOfMonth, dayIdea)
+
+        Spacer(Modifier.height(dimensionResource(R.dimen.ten_dp)))
+
+        // show description and reference only when expanded
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Column {
+                Text(
+                    text = stringResource(dayIdea.description),
+                    style = Typography.bodyLarge,
+                    overflow = TextOverflow.Visible
+                )
+
+                Spacer(Modifier.weight(1f))
+
+                Text(
+                    text = stringResource(dayIdea.reference),
+                    style = Typography.labelSmall,
+                    overflow = TextOverflow.Visible,
+                    modifier = Modifier.align(Alignment.End)
+                )
+            }
+        }
+
+        // when collapsed, keep space for alignment / brief teaser (optional)
+        if (!expanded) {
+            Text(
+                text = stringResource(dayIdea.reference),
+                style = Typography.labelSmall,
+                overflow = TextOverflow.Visible,
+                modifier = Modifier.align(Alignment.End)
+            )
+        }
+    }
+}
+
+
+/**
+ *  Day of month and idea title composable
  */
 @Composable
 private fun CardHeadline(
@@ -242,17 +273,17 @@ private fun CardHeadline(
 ) {
     Row {
         Text(
-            text = stringResource(R.string.day_text, dayOfMonth),   // day of month text
-            style = Typography.headlineMedium,   // 20sp font size
-            overflow = TextOverflow.Visible // display all text
+            text = stringResource(R.string.day_text, dayOfMonth),
+            style = Typography.headlineMedium,
+            overflow = TextOverflow.Visible
         )
 
-        Spacer(modifier = Modifier.width(dimensionResource(R.dimen.ten_dp))) // horizontal spacing between composables
+        Spacer(modifier = Modifier.width(dimensionResource(R.dimen.ten_dp)))
 
         Text(
-            text = stringResource(dayIdea.title),  // idea title
-            style = Typography.headlineMedium,  // 20sp font size
-            overflow = TextOverflow.Visible // display all text
+            text = stringResource(dayIdea.title),
+            style = Typography.headlineMedium,
+            overflow = TextOverflow.Visible
         )
     }
 }
